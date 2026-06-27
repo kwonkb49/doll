@@ -3,107 +3,64 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { BarChart, PieChart } from 'react-native-gifted-charts';
 import { useTheme } from '../context/ThemeContext';
 import { Period, useEmotionStats } from '../hooks/useEmotionStats';
+import { COLORS, getTheme } from '../screens/theme';
 
 const DEVICE_ID = '961804ad-1abc-43cd-af82-936272481ec5';
 
 export default function ReportScreen() {
   const { isDarkMode } = useTheme();
+  const theme = getTheme(isDarkMode);
+  
+  // 📆 사라졌던 주, 월, 일 필터 상태 복구!
   const [period, setPeriod] = useState<Period>('오늘');
   const { stats, loading, total } = useEmotionStats(DEVICE_ID, period);
 
-  // 📊 딥 다크모드 색상표 반영
-  const theme = {
-    bg: isDarkMode ? '#101012' : '#F2F4F6',          
-    card: isDarkMode ? '#1C1C1E' : '#FFFFFF',        
-    text: isDarkMode ? '#FFFFFF' : '#191F28',        
-    subText: isDarkMode ? '#8E8E93' : '#6B7280',     
-    border: isDarkMode ? '#2C2C2E' : '#E5E8EB',      
-    tabBg: isDarkMode ? '#2C2C2E' : '#E5E8EB',       
-    tabActive: isDarkMode ? '#101012' : '#FFFFFF',   
-  };
+  const emptyColor = isDarkMode ? COLORS.dark.border : COLORS.border;
 
-  const emptyColor = isDarkMode ? '#2C2C2E' : '#E5E8EB';
-  const pieData = stats.length > 0 
-    ? stats.map(s => ({ value: s.count, color: s.percentage > 30 ? '#3182F6' : '#A7D7C5' })) 
+  const pieData = stats && stats.length > 0
+    ? stats.map((s) => ({ value: s.count || 0, color: s.percentage > 30 ? COLORS.primary : COLORS.secondary }))
     : [{ value: 1, color: emptyColor }];
-    
-  const barData = stats.length > 0 
-    ? stats.map(s => ({ value: s.count, label: s.emotion })) 
-    : [{ value: 0, label: '-' }];
+
+  const barData = stats && stats.length > 0
+    ? stats.map((s) => ({ value: s.count || 0, label: s.emotion || '-', frontColor: COLORS.primary }))
+    : [{ value: 0, label: '-', frontColor: emptyColor }];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: theme.text }]}>감정 분석 리포트</Text>
 
-        {/* 탭 세팅 */}
-        <View style={[styles.tabContainer, { backgroundColor: theme.tabBg }]}>
+        {/* 📆 전처럼 기간 선택 필터 탭 바 제공 */}
+        <View style={[styles.tabWrap, { backgroundColor: isDarkMode ? COLORS.dark.border : COLORS.border }]}>
           {(['오늘', '이번 주', '이번 달'] as Period[]).map((p) => (
-            <Pressable
-              key={p}
-              style={[
-                styles.tabItem, 
-                period === p && [styles.tabActive, { backgroundColor: theme.tabActive }]
-              ]}
-              onPress={() => setPeriod(p)}
-            >
-              <Text style={[
-                styles.tabText, 
-                { color: theme.subText },
-                period === p && styles.tabTextActive
-              ]}>
+            <Pressable key={p} style={[styles.tab, period === p && { backgroundColor: theme.card }]} onPress={() => setPeriod(p)}>
+              <Text style={[styles.tabText, { color: theme.subText }, period === p && { color: COLORS.primary, fontWeight: '700' }]}>
                 {p}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {/* 총 횟수 안내 카드 */}
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <Text style={[styles.cardSub, { color: theme.subText }]}>선택한 기간 동안</Text>
-          <Text style={[styles.cardMainTitle, { color: theme.text }]}>
-            총 <Text style={styles.blueText}>{total}회</Text> 감지되었어요
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.cardSub, { color: theme.subText }]}>통계 타임라인 파일</Text>
+          <Text style={[styles.totalCount, { color: theme.text }]}>
+            총 <Text style={{ color: COLORS.primary }}>{total || 0}회</Text> 신호 감지됨
           </Text>
+          {loading && <Text style={{ color: theme.subText, fontSize: 12, marginTop: 4 }}>원격 실시간 연동 중...</Text>}
         </View>
 
-        {/* 차트 1: 도넛 차트 */}
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>전체 감정 비율</Text>
-          <View style={styles.chartCenter}>
-            <PieChart
-              data={pieData}
-              donut
-              radius={85}
-              innerRadius={60}
-              centerLabelComponent={() => (
-                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.text }}>{total}회</Text>
-                  <Text style={{ fontSize: 12, color: theme.subText, marginTop: 2 }}>누적 빈도</Text>
-                </View>
-              )}
-            />
-          </View>
+        {/* 원형 분포 차트 복구 */}
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.text, alignSelf: 'flex-start', marginBottom: 16 }}>감정 분포 비율</Text>
+          <PieChart data={pieData} donut radius={85} innerRadius={60} centerLabelComponent={() => (
+            <Text style={{ fontSize: 20, fontWeight: '800', color: theme.text }}>{total || 0}회</Text>
+          )} />
         </View>
 
-        {/* 차트 2: 막대 차트 */}
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>감정별 빈도 분석</Text>
-          <View style={{ marginTop: 20, alignItems: 'center' }}>
-            <BarChart
-              data={barData}
-              barWidth={32}
-              spacing={25}
-              noOfSections={3}
-              barBorderRadius={6}
-              frontColor="#3182F6"
-              yAxisThickness={0}
-              xAxisThickness={1}
-              xAxisColor={theme.border}
-              yAxisTextStyle={{ color: theme.subText }}
-              xAxisLabelTextStyle={{ color: theme.subText }}
-              hideRules
-            />
-          </View>
+        {/* 📊 막대 주/월 빈도 차트 완전 복구 */}
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.text, alignSelf: 'flex-start', marginBottom: 16 }}>감정 빈도 분석 그래프</Text>
+          <BarChart data={barData} barWidth={28} spacing={20} noOfSections={3} barBorderRadius={6} xAxisColor={theme.border} hideRules />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -112,17 +69,12 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  container: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  tabContainer: { flexDirection: 'row', borderRadius: 14, padding: 4, marginBottom: 24 },
-  tabItem: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-  tabActive: { elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-  tabText: { fontWeight: '600', fontSize: 14 },
-  tabTextActive: { color: '#3182F6', fontWeight: 'bold' },
-  card: { padding: 24, borderRadius: 24, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1 },
-  cardSub: { fontSize: 14, fontWeight: '500' },
-  cardMainTitle: { fontSize: 20, fontWeight: 'bold', marginTop: 4 },
-  blueText: { color: '#3182F6' },
-  chartTitle: { fontSize: 16, fontWeight: 'bold' },
-  chartCenter: { alignItems: 'center', marginVertical: 20 },
+  container: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 48 },
+  title: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  tabWrap: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 20 },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  tabText: { fontSize: 14, fontWeight: '500' },
+  card: { borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1 },
+  cardSub: { fontSize: 13, marginBottom: 4 },
+  totalCount: { fontSize: 18, fontWeight: '700' }
 });
