@@ -1,56 +1,34 @@
 {
   "expo": {
-    "name": "emotion-doll-mobile",
+    "name": "마음이음",
     "slug": "emotion-doll-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "emotiondollmobile",
+    "icon": "./logo.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "y",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.kiboem49.emotiondollmobile"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon.png",
-        "monochromeImage": "./assets/images/android-icon.png"
+        "foregroundImage": "./logo.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.kiboem49.emotiondollmobile"
     },
     "web": {
-      "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./logo.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ]
+      "expo-router"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c56b587e-998a-49ce-a3c5-0a2dbe2d3a30"
+        "projectId": "92c9d9ea-0893-4831-943c-82c3f61b4b26"
       }
-    }
+    },
+    "owner": "kiboem49s-team"
   }
 }

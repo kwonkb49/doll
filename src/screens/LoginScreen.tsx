@@ -1,45 +1,69 @@
-import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS } from './theme';
 
-export default function LoginScreen({ route, navigation }: any) {
-  const selectRole = route.params?.role || 'parent';
-  const accent = selectRole === 'parent' ? COLORS.primary : COLORS.secondary;
+const BASE_URL = 'https://doll-1v83.onrender.com';
 
+export default function LoginScreen({ navigation, route }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 이전 화면(RoleSelect)에서 선택한 역할(parent / teacher)을 가져오되, 기본값은 parent로 지정
+  const selectedRole = route?.params?.role || 'parent';
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('알림', '이메일과 비밀번호를 모두 입력해 주세요.');
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('알림', '이메일과 비밀번호를 입력해 주세요.');
       return;
     }
+
     setLoading(true);
     try {
-      const response = await axios.post(
-        'https://doll-1v83.onrender.com/auth/login',
-        { email: email.trim(), password: password.trim() },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
-      );
-      if (response.status === 200 || response.status === 201) {
-        Alert.alert('성공', '로그인되었습니다!', [
-          { text: '확인', onPress: () => navigation.replace('MainTabs', { role: selectRole }) },
+      const res = await axios.post(`${BASE_URL}/auth/login`, {
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      console.log('로그인 성공 응답:', res.data);
+
+      const token = res.data.accessToken || res.data.token;
+      // 서버에서 돌려준 role이 있으면 사용하고, 없으면 선택했던 role 적용
+      const userRole = res.data.role || selectedRole;
+
+      if (token) {
+        // 🔑 AsyncStorage에 토큰 키 2가지 모두 확실하게 저장
+        await AsyncStorage.setItem('accessToken', token);
+        await AsyncStorage.setItem('token', token);
+
+        Alert.alert('로그인 성공', '환영합니다!', [
+          {
+            text: '확인',
+            onPress: () => {
+              // 🚀 App.tsx에 정의된 스크린 이름 'MainTabs'로 이동
+              navigation.replace('MainTabs', { role: userRole });
+            },
+          },
         ]);
+      } else {
+        Alert.alert('로그인 오류', '서버에서 인증 토큰을 받지 못했습니다.');
       }
-    } catch (error: any) {
-      Alert.alert('로그인 실패', '이메일 또는 비밀번호가 일치하지 않습니다.');
+    } catch (err: any) {
+      console.error('로그인 실패:', err?.response?.data || err.message);
+      Alert.alert(
+        '로그인 실패',
+        err?.response?.data?.message || '이메일 또는 비밀번호를 확인해 주세요.'
+      );
     } finally {
       setLoading(false);
     }
@@ -47,92 +71,57 @@ export default function LoginScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'RoleSelect' }] })}
-          style={styles.backBtn}
-          hitSlop={8}
+      <View style={styles.container}>
+        <Text style={styles.title}>마음이음 로그인</Text>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>이메일</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="example@email.com"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>비밀번호</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="비밀번호 입력"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.loginBtn, loading && { opacity: 0.7 }]}
+          onPress={handleLogin}
+          disabled={loading}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.inner}>
-        <View style={[styles.roleBadge, { backgroundColor: selectRole === 'parent' ? COLORS.primaryLight : COLORS.secondaryLight }]}>
-          <Text style={[styles.roleBadgeText, { color: accent }]}>
-            {selectRole === 'parent' ? '보호자' : '보호사 · 선생님'}
-          </Text>
-        </View>
-
-        <Text style={styles.title}>로그인</Text>
-        <Text style={styles.subtitle}>계속하려면 로그인해 주세요.</Text>
-
-        <View style={styles.fieldGroup}>
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>이메일</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="name@example.com"
-              placeholderTextColor={COLORS.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-            />
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>비밀번호</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="비밀번호 입력"
-              placeholderTextColor={COLORS.textMuted}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
-
-        <Pressable onPress={() => navigation.navigate('Signup')} style={styles.signupLink}>
-          <Text style={styles.signupLinkText}>
-            계정이 없으신가요? <Text style={[styles.signupLinkAccent, { color: accent }]}>회원가입</Text>
-          </Text>
-        </Pressable>
-
-        <View style={{ flex: 1 }} />
-
-        {loading ? (
-          <ActivityIndicator size="large" color={accent} style={styles.loader} />
-        ) : (
-          <Pressable style={[styles.mainBtn, { backgroundColor: accent }]} onPress={handleLogin}>
-            <Text style={styles.mainBtnText}>로그인</Text>
-          </Pressable>
-        )}
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.loginBtnText}>로그인</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.surface },
-  header: { height: 56, justifyContent: 'center', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  backBtn: { padding: 4, alignSelf: 'flex-start' },
-  inner: { flex: 1, paddingHorizontal: 24, paddingBottom: 24 },
-  roleBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: 28, marginBottom: 16 },
-  roleBadgeText: { fontSize: 13, fontWeight: '600', letterSpacing: 0.1 },
-  title: { fontSize: 26, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: -0.5, marginBottom: 6 },
-  subtitle: { fontSize: 15, color: COLORS.textSecondary, marginBottom: 32 },
-  fieldGroup: { gap: 12 },
-  field: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary, paddingLeft: 2 },
-  input: { backgroundColor: COLORS.background, paddingHorizontal: 16, paddingVertical: 15, borderRadius: 12, fontSize: 15, color: COLORS.textPrimary, borderWidth: 1, borderColor: COLORS.border },
-  signupLink: { marginTop: 20, alignItems: 'center' },
-  signupLinkText: { fontSize: 14, color: COLORS.textMuted },
-  signupLinkAccent: { fontWeight: '600' },
-  loader: { marginBottom: 24 },
-  mainBtn: { padding: 17, borderRadius: 14, alignItems: 'center', marginBottom: 16 },
-  mainBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.1 },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, padding: 24, justifyContent: 'center' },
+  title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 32, textAlign: 'center' },
+  inputGroup: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: '600', color: '#333', marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 12, padding: 14, fontSize: 15, backgroundColor: '#F8F9FA', color: '#111' },
+  loginBtn: { backgroundColor: '#4A90E2', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  loginBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });
